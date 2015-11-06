@@ -42,11 +42,11 @@ void get_tf_from_odom(nav_msgs::Odometry odom)
 
 void vel_callback(const geometry_msgs::Twist::ConstPtr& msg)
 {
-    ROS_INFO("Received message on cmd_vel");
+    ROS_DEBUG("Received message on cmd_vel");
     measure_time = ros::Time::now();
     ros::Duration dt = measure_time - last_vel;
     last_vel = measure_time;
-    if (dt >= ros::Duration(0.2)) dt = ros::Duration(0.1);
+    if (dt >= ros::Duration(0.5)) dt = ros::Duration(0.1);
     message_received = true;
     geometry_msgs::Twist vel = *msg;
     update_odom_from_vel(vel,dt);
@@ -59,7 +59,7 @@ void init_pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr
         ROS_ERROR("Initial pose not specified in map frame, ignoring");
         return;
     }
-    ROS_INFO("Received pose estimate");
+    ROS_INFO("Received pose estimate of mobile base");
     
     // msg is map -> base_link
     tf::StampedTransform msg_t;

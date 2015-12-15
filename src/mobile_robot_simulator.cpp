@@ -30,13 +30,16 @@ void update_odom_from_vel(geometry_msgs::Twist vel, ros::Duration time_diff)
 
 void get_tf_from_odom(nav_msgs::Odometry odom)
 {
+    geometry_msgs::TransformStamped odom_tmp;
     // copy from odmoetry message
-    odom_trans.header = odom.header;
-    odom_trans.child_frame_id = odom.child_frame_id;
-    odom_trans.transform.translation.x = odom.pose.pose.position.x;
-    odom_trans.transform.translation.y = odom.pose.pose.position.y;
-    odom_trans.transform.translation.z = 0.0;
-    odom_trans.transform.rotation = odom.pose.pose.orientation;
+    odom_tmp.header = odom.header;
+    odom_tmp.child_frame_id = odom.child_frame_id;
+    odom_tmp.transform.translation.x = odom.pose.pose.position.x;
+    odom_tmp.transform.translation.y = odom.pose.pose.position.y;
+    odom_tmp.transform.translation.z = 0.0;
+    odom_tmp.transform.rotation = odom.pose.pose.orientation;
+    // convert and update
+    tf::transformStampedMsgToTF(odom_tmp, odom_trans);
     return;
 }
 
@@ -67,72 +70,15 @@ void init_pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr
     msg_t.setRotation(tf::Quaternion(msg->pose.pose.orientation.x,msg->pose.pose.orientation.y,msg->pose.pose.orientation.z,msg->pose.pose.orientation.w));
     ROS_DEBUG_STREAM("map -> base_link - x: " << msg_t.getOrigin().getX() << " y: " << msg_t.getOrigin().getY());
     // get odom -> base_link
-    tf::StampedTransform odom_t;
-    tf::transformStampedMsgToTF(odom_trans, odom_t);
-    ROS_DEBUG_STREAM("odom -> base_link - x: " << odom_t.getOrigin().getX() << " y: " << odom_t.getOrigin().getY());
+    ROS_DEBUG_STREAM("odom -> base_link - x: " << odom_trans.getOrigin().getX() << " y: " << odom_trans.getOrigin().getY());
     // calculate map -> odom and save as stamped
-    tf::StampedTransform map_t = tf::StampedTransform(msg_t * odom_t.inverse(), msg->header.stamp, "map", "odom");
+    tf::StampedTransform map_t = tf::StampedTransform(msg_t * odom_trans.inverse(), msg->header.stamp, "map", "odom");
     ROS_DEBUG_STREAM("map -> odom - x: " << map_t.getOrigin().getX() << " y: " << map_t.getOrigin().getY());
-    // convert and update
-    tf::transformStampedTFToMsg(map_t, map_trans);    
+    map_trans = map_t;    
     return;
 }
 
 } // end namespace
 
-int main(int argc, char **argv)
-{
-    ros::init(argc,argv, "mobile_robot_simulator");
-    ros::NodeHandle nh;
-    // publishers, subscribers
-    ros::Publisher odom_pub = nh.advertise<nav_msgs::Odometry>("odom",50); // odometry publisher
-    tf::TransformBroadcaster tf_broadcaster; // tf publisher
-    ros::Subscriber vel_sub = nh.subscribe("cmd_vel",5,mob_sim::vel_callback); // velocity subscriber
-    ros::Subscriber init_pose_sub = nh.subscribe("initialpose",5,mob_sim::init_pose_callback); // initial pose callback
-    // load parameters
-    
-    // initialize timers
-    ros::Time last_update = ros::Time::now();
-    mob_sim::last_vel = last_update - ros::Duration(0.1);
-    // initialize forst odom message
-    mob_sim::update_odom_from_vel(geometry_msgs::Twist(), ros::Duration(0.1));
-    mob_sim::odom.header.stamp = last_update;
-    mob_sim::get_tf_from_odom(mob_sim::odom);
-    // Initialize tf from map to odom
-    mob_sim::map_trans.header.frame_id = "/map";
-    mob_sim::map_trans.header.stamp = last_update;
-    mob_sim::map_trans.child_frame_id = "/odom";
-    mob_sim::map_trans.transform.rotation.w = 1.0;    
-    
-    ROS_INFO("Started mobile robot simulator, listening on cmd_vel topic");
-    
-    ros::Rate r(10.0);
-    while(nh.ok()){
-        ros::spinOnce();
-        last_update = ros::Time::now();
-        //ROS_INFO_STREAM("time diff " << (last_update - mob_sim::last_vel).toSec());
-        //ROS_INFO_STREAM("last_vel: " << mob_sim::last_vel.toSec());
-        //ROS_INFO_STREAM("cmd_vel received: " << mob_sim::message_received);
-        // If we didn't receive a message, send the old odometry info with a new timestamp
-        if (!mob_sim::message_received)
-        {
-            mob_sim::odom.header.stamp = last_update;
-            mob_sim::odom_trans.header.stamp = last_update;
-        }
-        // publish odometry and tf
-        odom_pub.publish(mob_sim::odom);
-        mob_sim::get_tf_from_odom(mob_sim::odom);
-        tf_broadcaster.sendTransform(mob_sim::odom_trans);
-        mob_sim::map_trans.header.stamp = last_update;
-        tf_broadcaster.sendTransform(mob_sim::map_trans);
-        
-        r.sleep();
-   
-        mob_sim::message_received = false;
-    }
-    
-    return 0;
-    
-} // end main
 
-// end namespace
+

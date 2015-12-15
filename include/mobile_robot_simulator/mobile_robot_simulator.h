@@ -7,6 +7,10 @@
 #include "nav_msgs/Odometry.h"
 
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_datatypes.h>
+
+#ifndef MOBILE_ROBOT_SIMULATOR
+#define MOBILE_ROBOT_SIMULATOR
 
 namespace mob_sim {
 
@@ -15,9 +19,9 @@ ros::Time measure_time; // this incoming velocity command
 bool message_received = false;
 
 nav_msgs::Odometry odom; // odometry message
-geometry_msgs::TransformStamped odom_trans;
+tf::StampedTransform odom_trans;
 
-geometry_msgs::TransformStamped map_trans; // transformation from odom to map
+tf::StampedTransform map_trans; // transformation from odom to map
 
 // current pose (only need yaw, rest is calculated)
 double th = 0.0;
@@ -35,3 +39,5 @@ void vel_callback(const geometry_msgs::Twist::ConstPtr& msg);
 void init_pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
 
 } // end mob_sim
+
+#endif

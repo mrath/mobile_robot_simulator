@@ -36,8 +36,9 @@ int main(int argc, char **argv)
     
     // set laser parameters
     double l_x, l_y, l_theta;
-    laser_sim::set_laser_params("base_link", M_PI, 100,25.0, 0.0, rate);
+    laser_sim::set_laser_params("base_link", M_PI, 541,25.0, 0.05, rate);
     laser_sim::last_scan = last_update;
+    laser_sim::set_noise_params(true,0.005, 2, 0.99, 0.0025, 0.005, 0.0025);
     // get map
     laser_sim::get_map();
     // do the tf lookup only once for the laser scanner

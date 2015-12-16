@@ -9,6 +9,7 @@
 #include <tf/transform_listener.h>
 
 #include <math.h>
+#include <random>
 
 #ifndef LASER_SIMULATOR
 #define LASER_SIMULATOR
@@ -29,6 +30,18 @@ float l_min_range; // min range of the laser scan
 float l_frequency; // frequency of laser scans
 ros::Time last_scan;
 
+// noise model parameters (see Probabilistic Robotics eq. 6.12)
+bool use_noise_model;
+double sigma_hit; // stddev of measurement noise
+double lambda_short; // intrinsic parameter for short readings (1/mu in exp pdf)
+double z_mix[4]; // mixing coefficients of the noise model - [z_hit, z_short, z_max, z_rand]
+// noise model distributions and generators
+std::default_random_engine rand_gen; // generator
+std::uniform_real_distribution<double> selector(0.0,1.0); // selector for which noise distribution to draw from
+std::normal_distribution<double> p_hit; // gaussian noise on detection
+std::exponential_distribution<double> p_short; // short readings
+std::uniform_real_distribution<double> p_rand; // random, "phantom" readings
+
 // output
 sensor_msgs::LaserScan output_scan;
 
@@ -38,6 +51,9 @@ void get_map();
 /*! updates the laser scanner parameters */
 void set_laser_params(std::string frame_id, float fov, unsigned int beam_count, float max_range, float min_range, float l_frequency);
 
+/*! updates the noise model parameters */
+void set_noise_params(bool use_model, double sigma_hit_reading, double lambda_short_reading, double z_hit, double z_short, double z_max, double z_rand); 
+
 /*! finds the pose of the laser in the map frame */
 void get_laser_pose(tf::TransformListener * tl, double * x, double * y, double * theta);
 
@@ -46,6 +62,9 @@ void update_scan(double x, double y, double theta, sensor_msgs::LaserScan * scan
 
 /*! raytracing, calculates intersection with the map for a single ray */
 double find_map_range(double x, double y, double theta);
+
+/*! applies sensor noise to the calculated range */
+double apply_range_noise(double range_reading);
 
 /*! get map cell corresponding to real-world coordinates */
 void get_world2map_coordinates(double x, double y, int * map_x, int * map_y);

@@ -174,26 +174,68 @@ double find_map_range(double x, double y, double theta)
             {
                 // are we below the minimum range of the laser scanner?
                 if (current_range < l_min_range) continue;
-                // if not, return the current range...
-                return current_range;
+                // if not, return the current range, with noise (optionally) applied
+                if (use_noise_model) return apply_range_noise(current_range);
+                else return current_range;
             }
         }
     } // end while
+}
+
+double apply_range_noise(double range_reading)
+{
+    // using Measurement model of laser range scanner, following method from chapter 6.3.1 of Probabilistic Robotics
+    double noise_modifier = selector(rand_gen);
+    // hit: gaussian noise on reading
+    if (noise_modifier < z_mix[0]) return range_reading + p_hit(rand_gen);
+    // short: short readings, exponential function
+    else if (noise_modifier <  z_mix[0] +  z_mix[1]) return p_short(rand_gen);
+    // rand: random reading, uniform distribution
+    else if (noise_modifier < z_mix[0] +  z_mix[1] +  z_mix[3]) return p_rand(rand_gen);
+    // max: no detection, max reading
+    else return l_max_range;
+}
+
+void set_noise_params(bool use_model, double sigma_hit_reading, double lambda_short_reading, double z_hit, double z_short, double z_max, double z_rand)
+{
+    use_noise_model = use_model;
+    sigma_hit = sigma_hit_reading;
+    lambda_short = lambda_short_reading;
+    z_mix[0] = z_hit;
+    z_mix[1] = z_short;
+    z_mix[2] = z_max;
+    z_mix[3] = z_rand;
+    // check that weights are normalized
+    double z_sum = z_mix[0]+z_mix[1]+z_mix[2]+z_mix[3];
+    if (z_sum != 1)
+    {
+        ROS_WARN_STREAM("Noise model weighting sums not normalized (sum is " << z_sum << "), normalizing them");
+        z_mix[0] = z_mix[0]/z_sum;
+        z_mix[1] = z_mix[1]/z_sum;
+        z_mix[2] = z_mix[2]/z_sum;
+        z_mix[3] = z_mix[3]/z_sum;
+        ROS_WARN_STREAM("After normalization - z_hit " << z_mix[0] << ", z_short " << z_mix[1] << ", z_max " << z_mix[2] << ", z_rand " << z_mix[3]);
+        
+    }
+    // reset distributions
+    p_hit = std::normal_distribution<double>(0.0,sigma_hit);
+    p_short = std::exponential_distribution<double>(lambda_short);
+    p_rand = std::uniform_real_distribution<double>(0.0,l_max_range);    
 }
     
 void get_world2map_coordinates(double world_x, double world_y, int * map_x, int * map_y)
 {
     *map_x = (int) (std::floor((world_x - map.info.origin.position.x) / map.info.resolution));
     *map_y = (int) (std::floor((world_y - map.info.origin.position.y) / map.info.resolution));
-    ROS_INFO_STREAM_THROTTLE(1, "world2map - x: " << world_x << " map_x: " << *map_x);
+    //ROS_INFO_STREAM_THROTTLE(1, "world2map - x: " << world_x << " map_x: " << *map_x);
     return;
 }
 
 void get_map2world_coordinates(int map_x, int map_y, double * world_x, double * world_y)
 {
-    *world_x = (map_x * map.info.resolution) + map.info.origin.position.x;
-    *world_y = (map_y * map.info.resolution) + map.info.origin.position.y;
-    ROS_INFO_STREAM_THROTTLE(1, "map2world - map_x: " << map_x << " x: " << *world_x);
+    *world_x = (map_x * map.info.resolution) + map.info.origin.position.x + 0.5*map.info.resolution;
+    *world_y = (map_y * map.info.resolution) + map.info.origin.position.y + 0.5*map.info.resolution;
+    //ROS_INFO_STREAM_THROTTLE(1, "map2world - map_x: " << map_x << " x: " << *world_x);
     return;
 }
 

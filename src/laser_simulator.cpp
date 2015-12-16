@@ -24,7 +24,7 @@ void get_map()
     
 }
 
-void set_laser_params(std::string frame_id, float fov, unsigned int beam_count, float max_range, float min_range, float update_frequency)
+void set_laser_params(std::string frame_id, double fov, unsigned int beam_count, double max_range, double min_range, double update_frequency)
 {
     l_frame = frame_id;
     l_fov = fov;
@@ -43,12 +43,13 @@ void get_laser_pose(tf::TransformListener * tl, double * x, double * y, double *
     try
     {
         tl->waitForTransform("/map",l_frame,now,ros::Duration(0.5));
-        tl->lookupTransform("/map",l_frame,now,transf);
+        tl->lookupTransform("/map",l_frame,ros::Time(0),transf);
     }
     catch (tf::TransformException ex)
     {
         ROS_ERROR("%s",ex.what());
-        throw std::runtime_error("Could not find transform");
+        *x = 0.0; *y = 0.0, *theta * 0.0;
+        return;
     }
     *x = transf.getOrigin().getX();
     *y = transf.getOrigin().getY();
@@ -78,7 +79,8 @@ void update_scan(double x, double y, double theta, sensor_msgs::LaserScan * scan
 
     for (unsigned int i=0; i<=l_beams; i++)
     {
-        this_ang = theta - scan->angle_min + i*scan->angle_increment;
+        this_ang = scan->angle_min + i*scan->angle_increment;
+        //this_ang = theta + scan->angle_max - i*scan->angle_increment;
         this_range = find_map_range(x,y,this_ang);
         ranges.push_back(this_range);
     }
@@ -91,14 +93,18 @@ double find_map_range(double x, double y, double theta)
 {
     // using "A Faster Voxel Traversal Algorithm for Ray Tracing" by Amanatides & Woo
     // ======== initialization phase ======== 
-    double origin[2]; // u_hat
+    //ROS_INFO_STREAM_ONCE("x,y,theta " << x << ", " << y << ", " << theta);
+    double origin[2]; // u
     origin[0] = x;
     origin[1] = y;
-    double dir[2]; // v_hat
+    //ROS_INFO_STREAM_ONCE("origin " << origin[0] << ", " << origin[1]);
+    double dir[2]; // v
     dir[0] = cos(theta);
     dir[1] = sin(theta);
+    //ROS_INFO_STREAM_ONCE("dir " << dir[0] << ", " << dir[1]);
     int start_x, start_y;
     get_world2map_coordinates(x,y,&start_x,&start_y);
+    //ROS_INFO_STREAM_ONCE("start " << start_x << ", " << start_y);
     if (start_x<0 || start_y<0 || start_x >= map.info.width || start_y >= map.info.height)
     {
         //outside the map, find entry point
@@ -111,6 +117,7 @@ double find_map_range(double x, double y, double theta)
     int current[2]; // X, Y
     current[0] = start_x;
     current[1] = start_y;
+    //ROS_INFO_STREAM_ONCE("current " << current[0] << ", " << current[1]);
    
     int step[2]; // stepX, stepY
     double tMax[2]; // tMaxX, tMaxY
@@ -120,12 +127,13 @@ double find_map_range(double x, double y, double theta)
     get_map2world_coordinates(current[0], current[1], &voxel_border[0], &voxel_border[1]);
     voxel_border[0] -= 0.5 * map.info.resolution; //this is the lower left voxel corner
     voxel_border[1] -= 0.5 * map.info.resolution; //this is the lower left voxel corner
+    //ROS_INFO_STREAM_ONCE("voxel_border " << voxel_border[0] << ", " << voxel_border[1]);
     
-    for (unsigned int i=0;i<2;i++) // for each direction (x,y)
+    for (unsigned int i=0;i<2;i++) // for each dimension (x,y)
     {
         // determine step direction
-        if (dir[i] > 0.0) step[i] = -1;
-        else if (dir[i] < 0.0) step[i] = 1;
+        if (dir[i] > 0.0) step[i] = 1;
+        else if (dir[i] < 0.0) step[i] = -1;
         else step[i] = 0;
         
         // determine tMax, tDelta
@@ -134,11 +142,11 @@ double find_map_range(double x, double y, double theta)
             // corner point of voxel (in direction of ray)
             if (step[i] == 1) 
             {
-                voxel_border[i] += (float) (step[i] * map.info.resolution * 1.0);
+                voxel_border[i] += (float) (step[i] * map.info.resolution);
             }
             // tMax - voxel boundary crossing
             tMax[i] = (voxel_border[i] - origin[i]) / dir[i];
-            // tDelta - voxel boundary distance
+            // tDelta - distance along ray so that veritcal/horizontal component equals one voxel
             tDelta[i] = map.info.resolution / fabs(dir[i]);
         } 
         else 
@@ -148,13 +156,17 @@ double find_map_range(double x, double y, double theta)
         }
         
     }
+    //ROS_INFO_STREAM_ONCE("step " << step[0] << ", " << step[1]);
+    //ROS_INFO_STREAM_ONCE("tMax " << tMax[0] << ", " << tMax[1]);
+    //ROS_INFO_STREAM_ONCE("tDelta " << tDelta[0] << ", " << tDelta[1]);
+    
     
     //ROS_DEBUG_STREAM("Starting at index " << start_x << "," << start_y);
     
     // ======== incremental traversal ======== 
     while (true) 
     {
-        // calculate range for current voxel
+        // advance
         unsigned int dim; // X or Y direction
         if (tMax[0] < tMax[1]) dim = 0;
         else dim = 1;

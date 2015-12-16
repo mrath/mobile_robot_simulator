@@ -23,11 +23,11 @@ bool have_map;
 
 // laser parameters
 std::string l_frame;
-float l_fov; // field of view, centered at pose of laser
+double l_fov; // field of view, centered at pose of laser
 unsigned int l_beams; // number of beams per scan
-float l_max_range; // max range of the laser scan
-float l_min_range; // min range of the laser scan
-float l_frequency; // frequency of laser scans
+double l_max_range; // max range of the laser scan
+double l_min_range; // min range of the laser scan
+double l_frequency; // frequency of laser scans
 ros::Time last_scan;
 
 // noise model parameters (see Probabilistic Robotics eq. 6.12)
@@ -49,7 +49,7 @@ sensor_msgs::LaserScan output_scan;
 void get_map();
 
 /*! updates the laser scanner parameters */
-void set_laser_params(std::string frame_id, float fov, unsigned int beam_count, float max_range, float min_range, float l_frequency);
+void set_laser_params(std::string frame_id, double fov, unsigned int beam_count, double max_range, double min_range, double l_frequency);
 
 /*! updates the noise model parameters */
 void set_noise_params(bool use_model, double sigma_hit_reading, double lambda_short_reading, double z_hit, double z_short, double z_max, double z_rand); 

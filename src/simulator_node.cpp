@@ -36,9 +36,9 @@ int main(int argc, char **argv)
     
     // set laser parameters
     double l_x, l_y, l_theta;
-    laser_sim::set_laser_params("base_link", M_PI, 541,25.0, 0.05, rate);
+    laser_sim::set_laser_params("base_link", M_PI, 541, 30.0, 0.05, rate);
     laser_sim::last_scan = last_update;
-    laser_sim::set_noise_params(true,0.005, 2, 0.99, 0.0025, 0.005, 0.0025);
+    laser_sim::set_noise_params(true,0.005, 2, 0.995, 0.0, 0.005, 0.0);
     // get map
     laser_sim::get_map();
     // do the tf lookup only once for the laser scanner
@@ -76,9 +76,10 @@ int main(int argc, char **argv)
         l_x = this_laser_tf.getOrigin().getX();
         l_y = this_laser_tf.getOrigin().getY();
         l_theta = tf::getYaw(this_laser_tf.getRotation());
+        //laser_sim::get_laser_pose(&tf_listener,&l_x,&l_y,&l_theta);
         //ROS_INFO_STREAM_THROTTLE(2,"x: " << l_x << " y: " << l_y << " theta: " <<  l_theta);
         laser_sim::update_scan(l_x,l_y,l_theta,&laser_sim::output_scan);
-        laser_sim::output_scan.header.stamp = last_update;
+        //laser_sim::output_scan.header.stamp = last_update;
         laser_pub.publish(laser_sim::output_scan);
         
         

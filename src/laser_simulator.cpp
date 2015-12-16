@@ -58,12 +58,17 @@ void get_laser_pose(tf::TransformListener * tl, double * x, double * y, double *
 
 void update_scan(double x, double y, double theta, sensor_msgs::LaserScan * scan)
 {
+    //timing
+    //ros::Time start = ros::Time::now();
     // laser params
     scan->angle_min = -l_fov/2.0;
     scan->angle_max = l_fov/2.0;
     scan->angle_increment = l_fov/l_beams;
     scan->range_min = l_min_range;
     scan->range_max = l_max_range+0.001;
+    scan->time_increment = (1.0/l_frequency) / l_beams;
+    scan->scan_time = (1.0/l_frequency);
+    
     std::vector<float> ranges;
     double this_range;
     double this_ang;
@@ -78,9 +83,7 @@ void update_scan(double x, double y, double theta, sensor_msgs::LaserScan * scan
         ranges.push_back(this_range);
     }
     scan->ranges = ranges;
-    //calculate timing
-    scan->time_increment = (1.0/l_frequency) / l_beams;
-    scan->scan_time = (1.0/l_frequency);
+    //ROS_INFO_STREAM_THROTTLE(2, "Simulated scan in " << (ros::Time::now()-start).toSec() << "s");
     return;
 }
 
@@ -222,7 +225,7 @@ void set_noise_params(bool use_model, double sigma_hit_reading, double lambda_sh
     p_short = std::exponential_distribution<double>(lambda_short);
     p_rand = std::uniform_real_distribution<double>(0.0,l_max_range);    
 }
-    
+
 void get_world2map_coordinates(double world_x, double world_y, int * map_x, int * map_y)
 {
     *map_x = (int) (std::floor((world_x - map.info.origin.position.x) / map.info.resolution));

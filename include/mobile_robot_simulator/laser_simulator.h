@@ -21,7 +21,7 @@ nav_msgs::OccupancyGrid map; //map data
 nav_msgs::OccupancyGrid * map_ptr; 
 bool have_map;
 
-// laser
+// laser parameters
 std::string l_frame;
 float l_fov; // field of view, centered at pose of laser
 unsigned int l_beams; // number of beams per scan

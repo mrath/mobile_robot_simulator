@@ -5,12 +5,9 @@
 LaserScannerSimulator::LaserScannerSimulator(ros::NodeHandle *nh)
 {
     nh_ptr = nh;
-    // TODO: get parameters
-    laser_pub = nh_ptr->advertise<sensor_msgs::LaserScan>("/scan",10); // scan publisher
-    
-    // set laser parameters
-    set_laser_params("base_link", 1.5*M_PI, 541, 30.0, 0.05, 10.0);
-    set_noise_params(true,0.005, 2, 0.995, 0.0, 0.005, 0.0);
+    // get parameters
+    get_params();
+    laser_pub = nh_ptr->advertise<sensor_msgs::LaserScan>(l_scan_topic,10); // scan publisher
     // get map
     get_map();
     ROS_INFO("Initialized laser scanner simulator");
@@ -18,7 +15,29 @@ LaserScannerSimulator::LaserScannerSimulator(ros::NodeHandle *nh)
 
 LaserScannerSimulator::~LaserScannerSimulator()
 {
-    if (!is_running) stop();
+    if (is_running) stop();
+}
+
+void LaserScannerSimulator::get_params()
+{
+    nh_ptr->param<std::string>("laser_topic", l_scan_topic, "scan");
+    //laser parameters - defaults are appriximately that of a Sick S300 
+    nh_ptr->param<std::string>("laser_frame_id", l_frame, "base_link");
+    nh_ptr->param<double>("laser_fov", l_fov, 1.5*M_PI);
+    nh_ptr->param<int>("laser_beam_count", l_beams, 541);
+    nh_ptr->param<double>("laser_max_range", l_max_range, 30.0);
+    nh_ptr->param<double>("laser_min_range", l_min_range, 0.05);
+    nh_ptr->param<double>("laser_frequency", l_frequency, 10.0);
+    // noise model parameters (see Probabilistic Robotics eq. 6.12)
+    nh_ptr->param<bool>("apply_noise", use_noise_model, true);
+    nh_ptr->param<double>("sigma_hit", sigma_hit, 0.005);
+    nh_ptr->param<double>("lambda_short", lambda_short, 2.0);
+    nh_ptr->param<double>("z_hit", z_mix[0], 0.995);
+    nh_ptr->param<double>("z_short", z_mix[1], 0.0);
+    nh_ptr->param<double>("z_max", z_mix[2], 0.005);
+    nh_ptr->param<double>("z_rand", z_mix[3], 0.0);
+    // update the noise model internally
+    set_noise_params(use_noise_model, sigma_hit, lambda_short, z_mix[0], z_mix[1], z_mix[2], z_mix[3]);
 }
 
 void LaserScannerSimulator::start(double rate)
@@ -43,7 +62,7 @@ void LaserScannerSimulator::update_loop(const ros::TimerEvent& event)
     // first, get the pose of the laser in the map frame
     double l_x, l_y, l_theta;
     get_laser_pose(&l_x,&l_y,&l_theta);
-    ROS_INFO_STREAM_THROTTLE(2,"x: " << l_x << " y: " << l_y << " theta: " <<  l_theta);
+    //ROS_INFO_STREAM_THROTTLE(2,"x: " << l_x << " y: " << l_y << " theta: " <<  l_theta);
     update_scan(l_x,l_y,l_theta);
     output_scan.header.stamp = event.current_real;
     laser_pub.publish(output_scan);

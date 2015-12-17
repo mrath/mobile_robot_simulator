@@ -38,6 +38,9 @@ private:
     /*! gets the current map */
     void get_map();
     
+    /*! gets parameters from the parameter server */
+    void get_params();
+    
     /*! finds the pose of the laser in the map frame */
     void get_laser_pose(double * x, double * y, double * theta);
     
@@ -71,10 +74,11 @@ private:
     nav_msgs::OccupancyGrid map; //map data
     bool have_map;
     
+    std::string l_scan_topic;
     // laser parameters
     std::string l_frame;
     double l_fov; // field of view, centered at pose of laser
-    unsigned int l_beams; // number of beams per scan
+    int l_beams; // number of beams per scan
     double l_max_range; // max range of the laser scan
     double l_min_range; // min range of the laser scan
     double l_frequency; // frequency of laser scans

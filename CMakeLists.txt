@@ -132,17 +132,21 @@ include_directories(
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(mobile_robot_simulator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(mobile_robot_simulator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(mobile_robot_simulator_node src/simulator_node.cpp)
+add_executable(simulator_node src/simulator_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(mobile_robot_simulator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(simulator_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(mobile_robot_simulator_node
+target_link_libraries(mobile_robot_simulator ${catkin_LIBRARIES})
+target_link_libraries(laser_simulator ${catkin_LIBRARIES})
+
+
+ target_link_libraries(simulator_node
    ${catkin_LIBRARIES} mobile_robot_simulator laser_simulator
  )
 

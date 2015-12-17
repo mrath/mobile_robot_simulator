@@ -2,9 +2,75 @@
 
 #include "mobile_robot_simulator/mobile_robot_simulator.h"
 
-namespace mob_sim { 
+MobileRobotSimulator::MobileRobotSimulator(ros::NodeHandle *nh)
+{
+    nh_ptr = nh;
+    // TODO: get parameters
+    odom_pub = nh_ptr->advertise<nav_msgs::Odometry>("/odom",50); // odometry publisher
+    vel_sub = nh_ptr->subscribe("/cmd_vel",5,&MobileRobotSimulator::vel_callback,this); // velocity subscriber
+    
+    // initialize timers
+    last_update = ros::Time::now();
+    last_vel = last_update - ros::Duration(0.1);
+    // initialize forst odom message
+    update_odom_from_vel(geometry_msgs::Twist(), ros::Duration(0.1));
+    odom.header.stamp = last_update;
+    get_tf_from_odom(odom);
+    // Initialize tf from map to odom
+    if (publish_map_transform)
+    {
+        init_pose_sub = nh_ptr->subscribe("/initialpose",5,&MobileRobotSimulator::init_pose_callback,this); // initial pose callback
+        map_trans.frame_id_ = "/map";
+        map_trans.stamp_ = last_update;
+        map_trans.child_frame_id_ = "/odom";
+        map_trans.setIdentity();
+    }
+    
+    ROS_INFO("Initialized mobile robot simulator");
+    
+}
 
-void update_odom_from_vel(geometry_msgs::Twist vel, ros::Duration time_diff)
+MobileRobotSimulator::~MobileRobotSimulator()
+{
+    if (!is_running) stop();
+}
+
+void MobileRobotSimulator::start(double rate)
+{
+    loop_timer = nh_ptr->createTimer(ros::Duration(1.0/rate),&MobileRobotSimulator::update_loop, this);
+    loop_timer.start(); // should not be necessary
+    is_running = true;
+    ROS_INFO("Started mobile robot simulator update loop, listening on cmd_vel topic");
+}
+
+void MobileRobotSimulator::stop()
+{
+    loop_timer.stop();
+    is_running = false;
+    ROS_INFO("Stopped mobile robot simulator");
+}
+
+void MobileRobotSimulator::update_loop(const ros::TimerEvent& event)
+{
+    last_update = event.current_real;
+    // If we didn't receive a message, send the old odometry info with a new timestamp
+    if (!message_received)
+    {
+        odom.header.stamp = last_update;
+        odom_trans.stamp_ = last_update;
+    }
+    // publish odometry and tf
+    odom_pub.publish(odom);
+    get_tf_from_odom(odom);
+    tf_broadcaster.sendTransform(odom_trans); // odom -> base_link
+    message_received = false;
+    // should we publish the map transform?
+    if (!publish_map_transform) return;
+    map_trans.stamp_ = last_update;
+    tf_broadcaster.sendTransform(map_trans); // map -> odom
+}
+
+void MobileRobotSimulator::update_odom_from_vel(geometry_msgs::Twist vel, ros::Duration time_diff)
 {
     ROS_DEBUG_STREAM("Velocity - x: " << vel.linear.x << " y: " << vel.linear.y << " th: " << vel.angular.z);
     //compute odometry in a typical way given the velocities of the robot
@@ -25,10 +91,9 @@ void update_odom_from_vel(geometry_msgs::Twist vel, ros::Duration time_diff)
     odom.child_frame_id = "base_link";
     odom.twist.twist = vel;
     ROS_DEBUG_STREAM("Odometry - x: " << odom.pose.pose.position.x << " y: " << odom.pose.pose.position.y << " th: " << th);
-    return;
 }
 
-void get_tf_from_odom(nav_msgs::Odometry odom)
+void MobileRobotSimulator::get_tf_from_odom(nav_msgs::Odometry odom)
 {
     geometry_msgs::TransformStamped odom_tmp;
     // copy from odmoetry message
@@ -40,10 +105,9 @@ void get_tf_from_odom(nav_msgs::Odometry odom)
     odom_tmp.transform.rotation = odom.pose.pose.orientation;
     // convert and update
     tf::transformStampedMsgToTF(odom_tmp, odom_trans);
-    return;
 }
 
-void vel_callback(const geometry_msgs::Twist::ConstPtr& msg)
+void MobileRobotSimulator::vel_callback(const geometry_msgs::Twist::ConstPtr& msg)
 {
     ROS_DEBUG("Received message on cmd_vel");
     measure_time = ros::Time::now();
@@ -53,10 +117,9 @@ void vel_callback(const geometry_msgs::Twist::ConstPtr& msg)
     message_received = true;
     geometry_msgs::Twist vel = *msg;
     update_odom_from_vel(vel,dt);
-    return;
 }
 
-void init_pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
+void MobileRobotSimulator::init_pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
 {
     if (msg->header.frame_id != "map") {
         ROS_ERROR("Initial pose not specified in map frame, ignoring");
@@ -75,10 +138,7 @@ void init_pose_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr
     tf::StampedTransform map_t = tf::StampedTransform(msg_t * odom_trans.inverse(), msg->header.stamp, "map", "odom");
     ROS_DEBUG_STREAM("map -> odom - x: " << map_t.getOrigin().getX() << " y: " << map_t.getOrigin().getY());
     map_trans = map_t;    
-    return;
 }
-
-} // end namespace
 
 
 

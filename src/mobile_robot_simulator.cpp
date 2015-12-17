@@ -32,7 +32,7 @@ MobileRobotSimulator::MobileRobotSimulator(ros::NodeHandle *nh)
 
 MobileRobotSimulator::~MobileRobotSimulator()
 {
-    if (!is_running) stop();
+    if (is_running) stop();
 }
 
 void MobileRobotSimulator::start(double rate)

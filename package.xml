@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>mobile_robot_simulator</name>
-  <version>0.1.0</version>
+  <version>1.0.0</version>
   <description>The mobile_robot_simulator package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
@@ -44,10 +44,12 @@
   <build_depend>nav_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>tf</build_depend>
+  <build_depend>sensor_msgs</build_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>nav_msgs</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>tf</run_depend>
+  <run_depend>sensor_msgs</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

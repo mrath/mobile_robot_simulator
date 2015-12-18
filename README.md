@@ -2,7 +2,7 @@
 A simple ROS simulator for mobile robots. Two nodes are included, that simulate a mobile base and a laser scanner. 
 This is useful if some high-level simulation is needed. The package is inspired by the industrial_robot_simulator package in ROS Industrial.
 
-The package includes three nodes, as well as a library for each of the simulators to include in other projects. For most uses, the included launch file should be sufficient -- see description of parameters for each node below.
+The package includes two nodes, as well as a library for each of the simulators to include in other projects. For most uses, the included launch file should be sufficient -- see description of parameters for each node below.
 
 ## mobile_robot_simulator_node
 Subscribes to incoming velocity commands, and updates odometry based on this. Also (optionally) publishes localization on tf.
@@ -23,7 +23,7 @@ Subscribes to incoming velocity commands, and updates odometry based on this. Al
 
 
 ## laser_scanner_simulator_node
-Does raytracing on an available occupancy grid map, using [1]. Optionally includes the noise model from [2] and applies it on the ranges. 
+Does raytracing on an available occupancy grid map, using [1]. Optionally includes the noise model from [2] and applies it on the ranges. Default laser parameters are those of a Sick S300 laser range scanner.
 
 ### Publications
 - `/scan` (sensor_msgs/LaserScan) - simulated laser scan, constructed by raytracing the occupancy grid map

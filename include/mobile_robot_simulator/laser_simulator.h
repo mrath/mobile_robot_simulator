@@ -27,8 +27,11 @@ public:
     /*! updates the noise model parameters */
     void set_noise_params(bool use_model, double sigma_hit_reading, double lambda_short_reading, double z_hit, double z_short, double z_max, double z_rand); 
 
-    void start(double rate); // start the simulation loop
-    void stop(); // stop everything
+    /*! start the simulation loop */
+    void start(); // 
+    
+    /*! stop everything */
+    void stop();
 
 
 private:
@@ -71,10 +74,12 @@ private:
     bool is_running;
     
     // map 
+    std::string map_service;
     nav_msgs::OccupancyGrid map; //map data
     bool have_map;
     
     std::string l_scan_topic;
+   
     // laser parameters
     std::string l_frame;
     double l_fov; // field of view, centered at pose of laser

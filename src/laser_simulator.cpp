@@ -21,6 +21,7 @@ LaserScannerSimulator::~LaserScannerSimulator()
 void LaserScannerSimulator::get_params()
 {
     nh_ptr->param<std::string>("laser_topic", l_scan_topic, "scan");
+    nh_ptr->param<std::string>("map_service", map_service, "static_map");
     //laser parameters - defaults are appriximately that of a Sick S300 
     nh_ptr->param<std::string>("laser_frame_id", l_frame, "base_link");
     nh_ptr->param<double>("laser_fov", l_fov, 1.5*M_PI);
@@ -40,9 +41,9 @@ void LaserScannerSimulator::get_params()
     set_noise_params(use_noise_model, sigma_hit, lambda_short, z_mix[0], z_mix[1], z_mix[2], z_mix[3]);
 }
 
-void LaserScannerSimulator::start(double rate)
+void LaserScannerSimulator::start()
 {
-    loop_timer = nh_ptr->createTimer(ros::Duration(1.0/rate),&LaserScannerSimulator::update_loop, this);
+    loop_timer = nh_ptr->createTimer(ros::Duration(1.0/l_frequency),&LaserScannerSimulator::update_loop, this);
     loop_timer.start(); // should not be necessary
     is_running = true;
     ROS_INFO("Started laser scanner simulator update loop");
@@ -72,7 +73,7 @@ void LaserScannerSimulator::get_map()
 {
     nav_msgs::GetMapRequest req;
     nav_msgs::GetMapResponse resp;
-    if (ros::service::call("/static_map", req, resp))
+    if (ros::service::call(map_service, req, resp))
     {
         map = resp.map;
         ROS_INFO_STREAM("Got a " << map.info.width << "x" << map.info.height << " map with resolution " << map.info.resolution);
@@ -80,7 +81,7 @@ void LaserScannerSimulator::get_map()
     }
     else 
     {
-        ROS_WARN("No map received - service '/static_map' not available (will publish only max_range)");
+        ROS_WARN_THROTTLE(10,"No map received - service '/static_map' not available (will publish only max_range)");
         have_map = false;
     }
 }

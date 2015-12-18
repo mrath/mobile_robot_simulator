@@ -20,8 +20,8 @@ int main(int argc, char **argv)
     ros::AsyncSpinner spinner(2);
     
     mob_sim.publish_map_transform = true;
-    mob_sim.start(10.0);
-    laser_sim.start(10.0);
+    mob_sim.start();
+    laser_sim.start();
     
     ros::Time tic = ros::Time::now();
     

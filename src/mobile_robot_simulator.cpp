@@ -5,9 +5,10 @@
 MobileRobotSimulator::MobileRobotSimulator(ros::NodeHandle *nh)
 {
     nh_ptr = nh;
-    // TODO: get parameters
-    odom_pub = nh_ptr->advertise<nav_msgs::Odometry>("/odom",50); // odometry publisher
-    vel_sub = nh_ptr->subscribe("/cmd_vel",5,&MobileRobotSimulator::vel_callback,this); // velocity subscriber
+    // get parameters
+    get_params();
+    odom_pub = nh_ptr->advertise<nav_msgs::Odometry>(odometry_topic,50); // odometry publisher
+    vel_sub = nh_ptr->subscribe(velocity_topic,5,&MobileRobotSimulator::vel_callback,this); // velocity subscriber
     
     // initialize timers
     last_update = ros::Time::now();
@@ -35,9 +36,18 @@ MobileRobotSimulator::~MobileRobotSimulator()
     if (is_running) stop();
 }
 
-void MobileRobotSimulator::start(double rate)
+void MobileRobotSimulator::get_params()
 {
-    loop_timer = nh_ptr->createTimer(ros::Duration(1.0/rate),&MobileRobotSimulator::update_loop, this);
+     nh_ptr->param<bool>("publish_map_transform", publish_map_transform , false);
+     nh_ptr->param<double>("publish_rate", publish_rate, 10.0);
+     nh_ptr->param<std::string>("velocity_topic", velocity_topic, "/cmd_vel");
+     nh_ptr->param<std::string>("odometry_topic", odometry_topic, "/odom");
+}
+
+
+void MobileRobotSimulator::start()
+{
+    loop_timer = nh_ptr->createTimer(ros::Duration(1.0/publish_rate),&MobileRobotSimulator::update_loop, this);
     loop_timer.start(); // should not be necessary
     is_running = true;
     ROS_INFO("Started mobile robot simulator update loop, listening on cmd_vel topic");

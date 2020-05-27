@@ -172,11 +172,14 @@ target_link_libraries(laser_scanner_simulator_node
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS mobile_robot_simulator mobile_robot_simulator_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS mobile_robot_simulator laser_simulator
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(TARGETS mobile_robot_simulator_node laser_scanner_simulator_node
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

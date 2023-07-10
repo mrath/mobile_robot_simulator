@@ -9,6 +9,7 @@ MobileRobotSimulator::MobileRobotSimulator(ros::NodeHandle *nh)
     get_params();
     odom_pub = nh_ptr->advertise<nav_msgs::Odometry>(odometry_topic,50); // odometry publisher
     vel_sub = nh_ptr->subscribe(velocity_topic,5,&MobileRobotSimulator::vel_callback,this); // velocity subscriber
+    trigger_jump_sub = nh_ptr->subscribe(trigger_jump_topic,5,&MobileRobotSimulator::trigger_jump_callback,this); // velocity subscriber
     
     // initialize timers
     last_update = ros::Time::now();
@@ -42,6 +43,8 @@ void MobileRobotSimulator::get_params()
      nh_ptr->param<double>("publish_rate", publish_rate, 10.0);
      nh_ptr->param<std::string>("velocity_topic", velocity_topic, "/cmd_vel");
      nh_ptr->param<std::string>("odometry_topic", odometry_topic, "/odom");
+     nh_ptr->param<std::string>("costmap_topic", costmap_topic, "/costmap");
+     nh_ptr->param<std::string>("trigger_jump_topic", trigger_jump_topic, "/trigger_jump");
 }
 
 
@@ -64,14 +67,23 @@ void MobileRobotSimulator::update_loop(const ros::TimerEvent& event)
 {
     last_update = event.current_real;
     // If we didn't receive a message, send the old odometry info with a new timestamp
+    mtx.lock();
     if (!message_received)
     {
         odom.header.stamp = last_update;
         odom_trans.stamp_ = last_update;
     }
+
+    if (mode == 1)
+    {
+        odom.pose.pose.position = odom_jumped.pose.pose.position;
+    }
+
     // publish odometry and tf
     odom_pub.publish(odom);
     get_tf_from_odom(odom);
+    mtx.unlock();
+
     tf_broadcaster.sendTransform(odom_trans); // odom -> base_link
     message_received = false;
     // should we publish the map transform?
@@ -150,5 +162,63 @@ void MobileRobotSimulator::init_pose_callback(const geometry_msgs::PoseWithCovar
     map_trans = map_t;    
 }
 
+void MobileRobotSimulator::trigger_jump_callback(const std_msgs::Bool::ConstPtr& msg)
+{
+    ROS_DEBUG("Received trigger msg for localization jump");
+    mtx.lock();
+    if (msg->data)
+    {
+        ROS_WARN("Fake GNSS jump triggered!");
+        odom_old.pose.pose.position = odom.pose.pose.position;
+        mode = 1;
+    }
+    else
+    {
+        ROS_WARN("Fake GNSS jump untriggered!");
+        odom.pose.pose.position = odom_old.pose.pose.position;
+        mode = 0;
+    }
+    execute_jump();
+    mtx.unlock();
+}
 
+void MobileRobotSimulator::execute_jump()
+{
+    get_costmap();
+    get_occupied_pose();
+}
 
+void MobileRobotSimulator::get_costmap()
+{
+    ROS_DEBUG("COSTMAP MESSAGE RECEIVED!");
+    nav_msgs::OccupancyGrid::ConstPtr msg = ros::topic::waitForMessage<nav_msgs::OccupancyGrid>(costmap_topic);
+    if (msg != NULL)
+        costmap = * msg;
+
+}
+
+void MobileRobotSimulator::get_occupied_pose()
+{
+    std::vector<double> costmapEig(costmap.data.begin(), costmap.data.end());
+    Eigen::VectorXd m = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(costmapEig.data(), costmapEig.size());
+    Eigen::MatrixXd map = Eigen::Map<Eigen::MatrixXd>(m.data(), costmap.info.height, costmap.info.width);
+    Eigen::Index maxRow, maxCol;
+    float max = map.maxCoeff(&maxRow, &maxCol);
+
+    ROS_DEBUG_STREAM("MAX: "<<max);
+    ROS_DEBUG_STREAM("MAX COL: "<<maxCol);
+    ROS_DEBUG_STREAM("MAX ROW: "<<maxRow);
+
+    if (max<THRESHOLD)
+    {
+        ROS_INFO_STREAM("No candidate position for GNSS jump. Costmap does not contain cell below occupied threshold (="<<THRESHOLD<<")");
+        mode = 0;
+    }
+    else
+    {
+        odom_jumped.pose.pose.position.x = costmap.info.origin.position.x + maxRow*costmap.info.resolution;
+        odom_jumped.pose.pose.position.y = costmap.info.origin.position.y + maxCol*costmap.info.resolution;
+
+        ROS_DEBUG_STREAM("GNSS Jump Pose: ("<<odom_jumped.pose.pose.position.x<<", "<<odom_jumped.pose.pose.position.y<<")");
+    }
+}

@@ -5,11 +5,18 @@
 #include "tf/LinearMath/Transform.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "nav_msgs/Odometry.h"
+#include "nav_msgs/OccupancyGrid.h"
+#include "std_msgs/Bool.h"
 
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
 
 #include <functional>
+
+#include <Eigen/Dense>
+#include <Eigen/Core>
+
+#include <mutex>
 
 #ifndef MOBILE_ROBOT_SIMULATOR
 #define MOBILE_ROBOT_SIMULATOR
@@ -69,6 +76,24 @@ private:
     ros::Subscriber vel_sub;
     ros::Subscriber init_pose_sub;    
     tf::TransformBroadcaster tf_broadcaster; 
+
+    // Localization Jump Extension
+    ros::Subscriber trigger_jump_sub;
+    std::string trigger_jump_topic;
+    ros::Subscriber costmap_sub;
+    std::string costmap_topic;
+    nav_msgs::Odometry odom_jumped, odom_old;
+    bool mode = 0;
+    nav_msgs::OccupancyGrid costmap;
+    // std::shared_ptr<Eigen::MatrixXf> map;
+    void trigger_jump_callback(const std_msgs::Bool::ConstPtr& msg);
+    void execute_jump();
+    void get_occupied_pose();
+    void get_costmap();
+    int THRESHOLD = 90;
+    std::mutex mtx; 
+    // const std::lock_guard<std::mutex> lock(mtx);
+
     
     //Topics
     std::string velocity_topic;
